@@ -37,7 +37,7 @@ mutable struct Experiment
     setupTimes :: Vector{Float64}
 
     function Experiment(datasetFile :: String, arch :: GCNArchitecture,
-                numTrainingIter :: Int64; randomizedTrainingSize = nothing)
+                numTrainingIter :: Int64; randomizer = nothing)
         return new(datasetFile, arch, numTrainingIter, randomizer,
                 0, Float64[], Float64[], Float64[])
     end
@@ -76,7 +76,7 @@ function addRuns(exp :: Experiment, numRuns :: Int; printInterval = 0 :: Int64)
 
         gcn = TensorFlowGCN(exp.architecture)
 
-        if exp.randomizer !== nothing
+        if exp.randomizer != nothing
             exp.randomizer(dataset)
         end
 
