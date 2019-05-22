@@ -266,6 +266,7 @@ space using the hypergraph Laplacian.
 """
 mutable struct LowRankPolyHypergraphLaplacianKernel <: GCNKernel
 	coeffs :: Vector{Vector{Float64}}
+	rank :: Int64
 	whichEV :: Symbol
 	isReduced :: Bool
 end
