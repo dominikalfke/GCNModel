@@ -310,15 +310,25 @@ function fillFeedDict(tfk :: TFLowRankPolyHypergraphLaplacianKernel, dataset :: 
 	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
 
 	if tfk.kernel.whichEV == :small
-		(U,Σ), = Arpack.svds(H, nsv=tfk.kernel.rank)
-		λ = 1 .- Σ.^2
+		firstEV = 1
+		numEV = tfk.kernel.rank
 	elseif tfk.kernel.whichEV == :smallnonzero
-		(U,Σ), = Arpack.svds(H, nsv=tfk.kernel.rank+1)
-		U = U[:, 2:end]
-		λ = 1 .- Σ[2:end].^2
+		firstEV = 2
+		numEV = tfk.kernel.rank+1
 	else
 		throw(ArgumentError("Unsupported eigenvalue specifier: $(tfk.kernel.whichEV)"))
 	end
+
+	if numEV > minimum(size(H))
+		throw(ArgumentError(
+			"Requested number of eigenvalues $(lastEV) is larger than the incidence matrix allows"))
+	elseif 2*numEV > minimum(size(H))
+		U, Σ = svd(H)
+	else
+		(U,Σ), = Arpack.svds(H, nsv=numEV)
+	end
+	U = U[:, firstEV:numEV]
+	λ = 1 .- Σ[firstEV:numEV].^2
 
     dict[tfk.UTensor] = U
     for i = 1:numParts(tfk.kernel)
@@ -374,10 +384,18 @@ function fillFeedDict(tfk :: TFLowRankInvHypergraphLaplacianKernel, dataset :: D
 	hg = dataset.graph :: Hypergraph
 	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
 
-	(U,Σ), = Arpack.svds(H, nsv=tfk.kernel.rank+1)
-	λ = 1 .- Σ[2:end].^2
+	numEV = tfk.kernel.rank+1
+	if numEV > minimum(size(H))
+		throw(ArgumentError(
+			"Requested number of eigenvalues $(numEV) is larger than the incidence matrix allows"))
+	elseif 2*numEV > minimum(size(H))
+		U, Σ = svd(H)
+	else
+		(U,Σ), = Arpack.svds(H, nsv=numEV)
+	end
+	λ = 1 .- Σ[2:numEV].^2
 
-    dict[tfk.UTensor] = U[:,2:end]
+    dict[tfk.UTensor] = U[:,2:numEV]
     dict[tfk.kernelDiagTensor] = hcat(minimum(λ) ./ λ)
 end
 
