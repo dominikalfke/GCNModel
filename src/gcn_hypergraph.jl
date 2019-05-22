@@ -54,20 +54,21 @@ getNumNodes(h :: Hypergraph) = size(h.incidence, 1)
 getNumEdges(h :: Hypergraph) = size(h.incidence, 2)
 
 function getDenseAdjacency(h :: Hypergraph)
-    n, m = size(h.incidence)
-
-    adj = zeros(n,n)
-    for i = 1:n
-        for j = 1:i-1
-            for k = 1:m
-                if h.incidence[i,k] > 0 && h.incidence[j,k] > 0
-                    adj[i,j] += h.weights[k]
-                end
-            end
-            adj[j,i] = adj[i,j]
-        end
-    end
-    return adj
+    # n, m = size(h.incidence)
+	#
+    # adj = zeros(n,n)
+    # for i = 1:n
+    #     for j = 1:i-1
+    #         for k = 1:m
+    #             if h.incidence[i,k] > 0 && h.incidence[j,k] > 0
+    #                 adj[i,j] += h.weights[k]
+    #             end
+    #         end
+    #         adj[j,i] = adj[i,j]
+    #     end
+    # end
+    # return adj
+	return h.incidence * Diagonal(h.weights ./ h.edgeDegrees) * h.incidence' - Diagonal(h.loopWeights)
 end
 isSparse(:: Hypergraph) = false
 
@@ -118,11 +119,11 @@ applySmoother(hs :: HypergraphSmoother, adjacency :: AbstractMatrix{Float64}, hy
 
 function getFullLaplacian(h :: Hypergraph, smoother = nothing)
 
-	normalizer = applySmoother(smoother, Diagonal(-h.loopWeights), h)
-	invD = inv(Diagonal(h.nodeDegrees) + normalizer)
-	normalizedInc = sqrt(invD) * h.incidence
+	SminusSH = applySmoother(smoother, Diagonal(-h.loopWeights), h)
+	invDplusS = inv(Diagonal(h.nodeDegrees) + SminusSH)
+	normalizedInc = sqrt(invDplusS) * h.incidence
 	return Symmetric(LinearAlgebra.I -
-			invD * normalizer -
+			invDplusS * SminusSH -
 			normalizedInc * Diagonal(h.weights ./ h.edgeDegrees) * transpose(normalizedInc))
 end
 
