@@ -345,8 +345,8 @@ mutable struct TensorFlowGCN
 
         self = new(arch)
 
-        numFeatures = arch.featuresSizes[1]
-        numLabels = arch.featuresSizes[end]
+        numFeatures = arch.layerWidths[1]
+        numLabels = arch.layerWidths[end]
 
         self.features = tf.placeholder(Float64, shape=[missing, numFeatures], name="Features")
         self.labels = tf.placeholder(Float64, shape=[missing, numLabels], name="Labels")
@@ -360,20 +360,20 @@ mutable struct TensorFlowGCN
         push!(self.hiddenLayers, X)
 
         numKernelParts = numParts(arch.kernel)
-        for i = 1:length(arch.featuresSizes)-1
+        for i = 1:length(arch.layerWidths)-1
             weights = [
                     #tf.get_variable("Weight_layer$(i)_kernel$(j)",
-                    #    shape=arch.featuresSizes[i:i+1], dtype=Float64)
+                    #    shape=arch.layerWidths[i:i+1], dtype=Float64)
                     tf.Variable(
-                        sqrt(6.0/sum(arch.featuresSizes[i:i+1])) *
-                            (1 .- 2*rand(Float64, arch.featuresSizes[i], arch.featuresSizes[i+1])),
+                        sqrt(6.0/sum(arch.layerWidths[i:i+1])) *
+                            (1 .- 2*rand(Float64, arch.layerWidths[i], arch.layerWidths[i+1])),
                         name = "Weight_layer$(i)_kernel$(j)")
                 for j = 1:numKernelParts]
             push!(self.weightVars, weights)
 
             X = applyLayer(self.tfKernel,
                 [tf.Ops.mat_mul(X, Θ) for Θ in weights])
-            if i < length(arch.featuresSizes)-1
+            if i < length(arch.layerWidths)-1
                 X = applyActivation(arch.activation, X)
             end
             push!(self.hiddenLayers, X)
@@ -420,8 +420,8 @@ the time of construction of the `TensorFlowGCN` object.
 """
 function initializeRandomWeights(gcn :: TensorFlowGCN, sess :: tf.Session)
     for i = 1:length(gcn.weightVars)
-        inputDim = gcn.architecture.featuresSizes[i]
-        outputDim = gcn.architecture.featuresSizes[i+1]
+        inputDim = gcn.architecture.layerWidths[i]
+        outputDim = gcn.architecture.layerWidths[i+1]
         initRange = sqrt(6.0/(inputDim+outputDim))
         for Θ in gcn.weightVars[i]
             tf.run(sess, tf.assign(Θ, initRange * (1 .- 2*rand(Float64, inputDim, outputDim))))
@@ -482,8 +482,8 @@ Note that in a typical workflow, calling this function is the first time that
 any large matrices are constructed.
 """
 function createFeedDicts(gcn :: TensorFlowGCN, dataset :: Dataset)
-    @assert(dataset.numFeatures == gcn.architecture.featuresSizes[1])
-    @assert(dataset.numLabels == gcn.architecture.featuresSizes[end])
+    @assert(dataset.numFeatures == gcn.architecture.layerWidths[1])
+    @assert(dataset.numLabels == gcn.architecture.layerWidths[end])
 
     feedDictTrain = Dict{tf.Tensor, Any}(
         gcn.features => dataset.features)

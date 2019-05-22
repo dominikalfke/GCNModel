@@ -60,10 +60,7 @@ argument, which can be one of the following symbols:
 `:smallnonzero` - compute the smallest eigenvalues, skipping the first
 	eigenvalue, which is assumed to be zero.
 """
-getLaplacianEigenvalues(graph :: AbstractGraph, numEV :: Int64, whichEV :: Symbol, smoother = nothing) =
-	_getLaplacianEigenvalues(graph, numEV, whichEV, smoother)
-
-function _getLaplacianEigenvalues(graph :: AbstractGraph, numEV :: Int64, whichEV :: Symbol, smoother)
+function getLaplacianEigenvalues(graph :: AbstractGraph, numEV :: Int64, whichEV :: Symbol, smoother = nothing)
     L = getFullLaplacian(graph, smoother)
     if whichEV == :small
         λ, U = Arpack.eigs(2*UniformScaling(1.0) - L, nev=numEV, which=:LM)

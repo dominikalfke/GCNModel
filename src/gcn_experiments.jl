@@ -7,7 +7,8 @@ export
     getAverageAccuracy,
     addRuns,
     clearResults,
-    saveInJLD
+    saveInJLD,
+    printSummary
 
 """
     Data type for a semi-supervised node classification experiment with a
@@ -27,7 +28,7 @@ mutable struct Experiment
 
     numTrainingIter :: Int64
 
-    randomizedTrainingSize :: Int64
+    randomizer
 
     numRuns :: Int64
 
@@ -36,31 +37,14 @@ mutable struct Experiment
     setupTimes :: Vector{Float64}
 
     function Experiment(datasetFile :: String, arch :: GCNArchitecture,
-                numTrainingIter :: Int64, randomizedTrainingSize = 0 :: Int64)
-        return new(datasetFile, arch, numTrainingIter, randomizedTrainingSize,
+                numTrainingIter :: Int64; randomizedTrainingSize = nothing)
+        return new(datasetFile, arch, numTrainingIter, randomizer,
                 0, Float64[], Float64[], Float64[])
     end
-    # function Experiment(file :: HDF5File, name :: String)
-    #     exp = new()
-    #     for field in fieldnames(Experiment)
-    #         if field == :architecture
-    #             exp.architecture = GCNArchitecture(file, "$name/architecture")
-    #         else
-    #             setproperty!(exp, field, read(file, "$name/$field"))
-    #         end
-    #     end
-    #     return exp
-    # end
 end
 
 Base.show(io :: IO, exp :: Experiment) = print(io,
     "$(typeof(exp))($(exp.datasetFile), \"$(exp.architecture.name)\", $(exp.numTrainingIter) training iterations, $(exp.numRuns) runs done)")
-
-# function Base.write(file :: HDF5File, name :: String, exp :: Experiment)
-#     for field in fieldnames(Experiment)
-#         write(file, "$name/$field", getfield(exp, field))
-#     end
-# end
 
 """
     getAverageAccuracy(exp :: Experiment)
@@ -92,8 +76,8 @@ function addRuns(exp :: Experiment, numRuns :: Int; printInterval = 0 :: Int64)
 
         gcn = TensorFlowGCN(exp.architecture)
 
-        if exp.randomizedTrainingSize > 0
-            randomizeIndices!(dataset, exp.randomizedTrainingSize)
+        if exp.randomizer !== nothing
+            exp.randomizer(dataset)
         end
 
         sess, feedDictTest, setupTime, trainingTime =
@@ -154,3 +138,46 @@ function saveInJLD(exp :: Experiment, filename :: String, expName = "" :: String
         write(file, "summary_$expName/trainingTime", sum(exp.trainingTimes)/exp.numRuns)
     end
 end
+
+"""
+    printSummary(exp :: Experiment)
+
+Print a summary of the experiment results.
+"""
+function printSummary(exp :: Experiment)
+    if exp.numRuns > 0
+        println("Results from $(exp.numRuns) runs for experiment with architecture \"$(exp.architecture.name)\":")
+        println(" - Accuracy: $(sum(exp.accuracyResults)/exp.numRuns*100) %")
+        println(" - Setup time: $(sum(exp.setupTimes)/exp.numRuns) s")
+        println(" - Training time: $(sum(exp.trainingTimes)/exp.numRuns) s")
+    else
+        println("No results available for experiment with architecture \"$(exp.architecture.name)\".")
+    end
+end
+
+"""
+    TrainingSetRandomizer
+
+Functor struct that can be passed to the `Experiment` constructor as the
+`randomizer` keyword argument. Before each run, a new set of training nodes
+will be chosen completely randomly via the `randomizeTrainingSet!` function.
+"""
+mutable struct TrainingSetRandomizer
+    numTrainingNodes :: Int64
+end
+(r :: TrainingSetRandomizer)(dataset :: Dataset) =
+    randomizeTrainingSet!(dataset, r.numTrainingNodes)
+
+"""
+    UniformTrainingSetRandomizer
+
+Functor struct that can be passed to the `Experiment` constructor as the
+`randomizer` keyword argument. Before each run, a new set of training nodes
+will be chosen, where the number of nodes with each label is fixed. The
+`randomizeUniformTrainingSet!` function is called.
+"""
+mutable struct UniformTrainingSetRandomizer
+    numTrainingNodesPerClass :: Int64
+end
+(r :: UniformTrainingSetRandomizer)(dataset :: Dataset) =
+    randomizeUniformTrainingSet!(dataset, r.numTrainindNodesPerClass)

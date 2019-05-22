@@ -9,6 +9,8 @@ export
 	TFPolySmoothedHypergraphLaplacianKernel,
 	PolyHypergraphLaplacianKernel,
 	TFPolyHypergraphLaplacianKernel,
+	LowRankInvHypergraphLaplacianKernel,
+	TFLowRankInvHypergraphLaplacianKernel,
 	InvHypergraphLaplacianKernel,
 	TFInvHypergraphLaplacianKernel
 
@@ -256,6 +258,12 @@ function fillFeedDict(tfk :: TFPolyHypergraphLaplacianKernel, dataset :: Dataset
 end
 
 
+"""
+	LowRankPolyHypergraphLaplacianKernel
+
+`GCNKernel` subtype for efficient evaluation of a low-rank polynomial filter
+space using the hypergraph Laplacian.
+"""
 mutable struct LowRankPolyHypergraphLaplacianKernel <: GCNKernel
 	coeffs :: Vector{Vector{Float64}}
 	whichEV :: Symbol
@@ -321,6 +329,13 @@ end
 
 
 
+"""
+	LowRankInvHypergraphLaplacianKernel
+
+`GCNKernel` subtype for efficient evaluation of the one-dimensional filter space
+spanned by the low-rank pseudoinverse filter function with the hypergraph
+Laplacian.
+"""
 mutable struct LowRankInvHypergraphLaplacianKernel <: GCNKernel
 	rank :: Int64
 	isReduced :: Bool
@@ -364,6 +379,13 @@ end
 
 
 
+"""
+	LowRankInvHypergraphLaplacianKernel
+
+`GCNKernel` subtype for efficient evaluation of the one-dimensional filter space
+spanned by the full-rank pseudoinverse filter function with the hypergraph
+Laplacian.
+"""
 struct InvHypergraphLaplacianKernel <: GCNKernel end
 
 

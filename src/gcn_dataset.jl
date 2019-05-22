@@ -13,8 +13,8 @@ export Dataset,
     getValidationLabels,
     connectedComponents,
     largestConnectedSubDataset,
-    randomizeIndices!,
-    randomizeUniformIndices!
+    randomizeTrainingSet!,
+    randomizeUniformTrainingSet!
 
 """
     Dataset
@@ -30,11 +30,11 @@ classification.
 
 `labels`: Label matrix. Entry (i,j) gives the (typically one-hot) value for label #j in node #i.
 
-`testInd`: List of node indices for testing results.
+`testSet`: List of node indices for testing results.
 
-`trainInd`: List of node indices for training.
+`trainingSet`: List of node indices for training.
 
-`validInd`: List of node indices for model validation.
+`validationSet`: List of node indices for model validation.
 
 `numNodes`: Number of data set entries, i.e. nodes in the graph.
 
@@ -51,9 +51,9 @@ mutable struct Dataset
     features :: Matrix{Float64}
     labels :: Matrix{Float64}
 
-    testInd :: Vector{Int64}
-    trainInd :: Vector{Int64}
-    validInd :: Vector{Int64}
+    testSet :: Vector{Int64}
+    trainingSet :: Vector{Int64}
+    validationSet :: Vector{Int64}
 
     numFeatures :: Int64
     numLabels :: Int64
@@ -61,10 +61,10 @@ mutable struct Dataset
 
     function Dataset(name :: String, graph :: AbstractGraph,
             features :: Matrix{Float64}, labels :: Matrix{Float64},
-            testInd :: Vector{Int64}, trainInd :: Vector{Int64}, validInd :: Vector{Int64})
+            testSet :: Vector{Int64}, trainingSet :: Vector{Int64}, validationSet :: Vector{Int64})
 
         self = new(name, graph, features, labels,
-                testInd, trainInd, validInd)
+                testSet, trainingSet, validationSet)
 
         self.numNodes = size(self.features, 1)
         @assert getNumNodes(graph) == self.numNodes
@@ -91,15 +91,15 @@ function getMaskedLabels(d :: Dataset, indices)
     return labels
 end
 
-getTrainLabels(d :: Dataset) = getMaskedLabels(d, d.trainInd)
-getTestLabels(d :: Dataset) = getMaskedLabels(d, d.testInd)
-getValidationLabels(d :: Dataset) = getMaskedLabels(d, d.validInd)
+getTrainLabels(d :: Dataset) = getMaskedLabels(d, d.trainingSet)
+getTestLabels(d :: Dataset) = getMaskedLabels(d, d.testSet)
+getValidationLabels(d :: Dataset) = getMaskedLabels(d, d.validationSet)
 
 
 Base.show(io :: IO, d :: Dataset) =
     # print(io, "Dataset \"$(d.name)\" with $(d.numNodes) nodes, $(d.numFeatures) features, and $(d.numLabels) labels")
     print(io, "Dataset(\"$(d.name)\", ",
-            "$(d.numNodes) nodes ($(length(d.trainInd))+$(length(d.testInd))+$(length(d.validInd))), ",
+            "$(d.numNodes) nodes ($(length(d.trainingSet))+$(length(d.testSet))+$(length(d.validationSet))), ",
             "$(d.numFeatures) features, and $(d.numLabels) labels)")
 
 """
@@ -175,38 +175,39 @@ function largestConnectedSubDataset(d :: Dataset, newName = d.name * "_largestCo
     end
 
     return Dataset(newName, graph, features, labels,
-        transformInd(d.testInd, doKeep),
-        transformInd(d.trainInd, doKeep),
-        transformInd(d.validInd, doKeep))
+        transformInd(d.testSet, doKeep),
+        transformInd(d.trainingSet, doKeep),
+        transformInd(d.validationSet, doKeep))
 end
 
 """
-    randomizeIndices!(dataset :: Dataset)
-    randomizeIndices!(dataset :: Dataset, numTrainInd :: Int64)
+    randomizeTrainingSet!(dataset :: Dataset)
+    randomizeTrainingSet!(dataset :: Dataset, numTrainingNodes :: Int64)
 
-Sets the `testInd`, `trainInd`, and `validInd` fields of a dataset object so
+Sets the `testSet`, `trainingSet`, and `validationSet` fields of a dataset object so
 that the training set is made up of `n` random nodes. All remaining nodes will
 be used as test nodes and there will be no validation nodes. The number `n` can
-be given by the second argument `numTrainInd`. If omitted, the former number of
+be given by the second argument `numTrainingNodes`. If omitted, the former number of
 training nodes will be maintained.
 """
-function randomizeIndices!(dataset :: Dataset, numTrainInd = length(dataset.trainInd):: Int64)
+function randomizeTrainingSet!(dataset :: Dataset,
+            numTrainingNodes = length(dataset.trainingSet):: Int64)
     cycle = randcycle(dataset.numNodes)
-    dataset.trainInd = cycle[1:numTrainInd]
-    dataset.testInd = cycle[numTrainInd+1:end]
-    dataset.validInd = Int64[]
+    dataset.trainingSet = cycle[1:numTrainingNodes]
+    dataset.testSet = cycle[numTrainingNodes+1:end]
+    dataset.validationSet = Int64[]
     return dataset
 end
 
-function randomizeUniformIndices!(dataset :: Dataset, numTrainIndPerClass :: Int64)
-    dataset.trainInd = Int64[]
-    dataset.testInd = Int64[]
-    dataset.validInd = Int64[]
+function randomizeUniformTrainingSet!(dataset :: Dataset, numTrainingNodesPerClass :: Int64)
+    dataset.trainingSet = Int64[]
+    dataset.testSet = Int64[]
+    dataset.validationSet = Int64[]
     for i = 1:dataset.numLabels
         ind = findall(dataset.labels[:,i][:] .!= 0)
         cycle = randcycle(length(ind))
-        append!(dataset.trainInd, ind[cycle[1:numTrainIndPerClass]])
-        append!(dataset.testInd, ind[cycle[numTrainIndPerClass+1:end]])
+        append!(dataset.trainingSet, ind[cycle[1:numTrainingNodesPerClass]])
+        append!(dataset.testSet, ind[cycle[numTrainingNodesPerClass+1:end]])
     end
     return dataset
 end

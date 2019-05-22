@@ -126,14 +126,14 @@ mutable struct GCNArchitecture
 
     name :: String
     kernel :: GCNKernel
-    featuresSizes :: Vector{Int64}
+    layerWidths :: Vector{Int64}
     activation :: Symbol
     regParam :: Float64
 
-    GCNArchitecture(featuresSizes :: Vector{Int64}, kernel :: GCNKernel;
+    GCNArchitecture(layerWidths :: Vector{Int64}, kernel :: GCNKernel;
             name = "GCN" :: String,
             activation = :relu :: Symbol,
             regParam = 5e-4 :: Float64) =
-        new(name, kernel, featuresSizes, activation, regParam)
+        new(name, kernel, layerWidths, activation, regParam)
 
 end
