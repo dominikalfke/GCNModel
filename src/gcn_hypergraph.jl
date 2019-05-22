@@ -414,15 +414,17 @@ struct InvHypergraphLaplacianKernel <: GCNKernel end
 mutable struct TFInvHypergraphLaplacianKernel <: TFKernel
 	UTensor :: tf.Tensor
 	kernelDiagTensor :: tf.Tensor
+	λminTensor :: tf.Tensor
 end
 
 TFKernel(:: InvHypergraphLaplacianKernel) = TFInvHypergraphLaplacianKernel(
 	tf.placeholder(Float64, shape=[missing, missing], name="U"),
-	tf.placeholder(Float64, shape=[missing, 1], name="kernelDiag"))
+	tf.placeholder(Float64, shape=[missing, 1], name="kernelDiag"),
+	tf.placeholder(Float64, shape=[], name="lambdamin"))
 
 
 applyLayer(tfk :: TFInvHypergraphLaplacianKernel, XParts :: Vector{tf.Tensor{Float64}}) =
-    XParts[1] - tfk.UTensor * (tfk.kernelDiagTensor .* (tfk.UTensor' * XParts[1]))
+    tfk.λminTensor .* XParts[1] + tfk.UTensor * (tfk.kernelDiagTensor .* (tfk.UTensor' * XParts[1]))
 
 
 function fillFeedDict(tfk :: TFInvHypergraphLaplacianKernel, dataset :: Dataset, dict :: Dict)
@@ -435,5 +437,6 @@ function fillFeedDict(tfk :: TFInvHypergraphLaplacianKernel, dataset :: Dataset,
 	λmin = minimum(Λ)
 
     dict[tfk.UTensor] = U
-    dict[tfk.kernelDiagTensor] = hcat(1 .- vcat(0, λmin ./ Λ))
+    dict[tfk.kernelDiagTensor] = λmin * hcat(vcat(0, 1 ./ Λ) .- 1)
+	dict[tfk.λminTensor] = λmin
 end
