@@ -9,6 +9,8 @@ export
 	TFPolySmoothedHypergraphLaplacianKernel,
 	PolyHypergraphLaplacianKernel,
 	TFPolyHypergraphLaplacianKernel,
+	LowRankPolyHypergraphLaplacianKernel,
+	TFLowRankPolyHypergraphLaplacianKernel,
 	LowRankInvHypergraphLaplacianKernel,
 	TFLowRankInvHypergraphLaplacianKernel,
 	InvHypergraphLaplacianKernel,
