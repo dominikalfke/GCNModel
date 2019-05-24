@@ -1,5 +1,5 @@
 # GCNModel
-Julia implementation of Graph Convolutional Networks as used in the paper
+Julia implementation of Graph Convolutional Networks as used in the pre-print to **Semi-Supervised Classification on Non-Sparse Graphs Using Low-Rank Graph Convolutional Networks** by Dominik Alfke and Martin Stoll.
 
 ## Installation
 This module requires the [``TensorFlow.jl``](https://github.com/malmaud/TensorFlow.jl) package. Before laying hands on ``GCNModel``, it is best to install, build, and test the TensorFlow module first.
