@@ -1,10 +1,14 @@
 # GCNModel
-Julia implementation of Graph Convolutional Networks as used in the pre-print to **Semi-Supervised Classification on Non-Sparse Graphs Using Low-Rank Graph Convolutional Networks** by Dominik Alfke and Martin Stoll.
+Julia implementation of Graph Convolutional Networks as used in the pre-print to Alfke, Stoll, **Semi-Supervised Classification on Non-Sparse Graphs Using Low-Rank Graph Convolutional Networks** (2019).
 
 ## Installation
 This module requires the [``TensorFlow.jl``](https://github.com/malmaud/TensorFlow.jl) package. Before laying hands on ``GCNModel``, it is best to install, build, and test the TensorFlow module first.
 
 Since the ``GCNModel`` package is not currently available in Julia's package repository, you have to make it available to your Julia installation. One way to do this is to activate the ``GCNModel`` environment each time you start Julia before using the module. Type ``]`` in Julia to open the package command line, followed by ``activate path/to/GCNModel``. From then on, ``using GCNModel`` should work.
+
+## Examples
+
+For usage examples, see the [LowRankGCNExperiments](https://github.com/dominikalfke/LowRankGCNExperiments) repository.
 
 ## Dataset representation
 The ``Dataset`` data type is designed for semi-supervised node classification on graphs. It holds the ``features`` and ``labels`` matrix, index vectors holding the ``trainingSet``, ``testSet``, and ``validationSet`` (though the latter is never used in our setup), as well as an object of an ``AbstractGraph`` subtype. Notable subtypes are ``Hypergraph`` and ``FullGaussianGraph``. Additional, untested subtypes are ``AdjacencyGraph``, ``SparseAdjacencyGraph``, and ``EdgeListGraph``, which remain for future work.
