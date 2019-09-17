@@ -161,7 +161,7 @@ function printSummary(exp :: Experiment)
 
         trainingTimeMean = sum(exp.trainingTimes) / exp.numRuns
         trainingTimeSD = sqrt(sum((exp.trainingTimes .- trainingTimeMean).^2) / (exp.numRuns - 1))
-        println(" - Setup time: $(trainingTimeMean) seconds (σ = $(trainingTimesSD))")
+        println(" - Setup time: $(trainingTimeMean) seconds (σ = $(trainingTimeSD))")
     elseif exp.numRuns == 1
         println("Results from a single experiment run with architecture \"$(exp.architecture.name)\":")
 
