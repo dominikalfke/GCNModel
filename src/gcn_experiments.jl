@@ -148,11 +148,31 @@ end
 Print a summary of the experiment results.
 """
 function printSummary(exp :: Experiment)
-    if exp.numRuns > 0
-        println("Results from $(exp.numRuns) runs for experiment with architecture \"$(exp.architecture.name)\":")
-        println(" - Accuracy: $(sum(exp.accuracyResults)/exp.numRuns*100) %")
-        println(" - Setup time: $(sum(exp.setupTimes)/exp.numRuns) s")
-        println(" - Training time: $(sum(exp.trainingTimes)/exp.numRuns) s")
+    if exp.numRuns > 1
+        println("Average results from $(exp.numRuns) experiment runs with architecture \"$(exp.architecture.name)\":")
+
+        accuracyMean = sum(exp.accuracyResults) / exp.numRuns
+        accuracySD = sqrt(sum((exp.accuracyResults .- accuracyMean).^2) / (exp.numRuns-1))
+        println(" - Accuracy: $(accuracyMean*100) % (σ = $(accuracySD*100)")
+
+        setupTimeMean = sum(exp.setupTimes) / exp.numRuns
+        setupTimeSD = sqrt(sum((exp.setupTimes .- setupTimeMean).^2) / (exp.numRuns - 1))
+        println(" - Setup time: $(setupTimeMean) seconds (σ = $(setupTimeSD))")
+
+        trainingTimeMean = sum(exp.trainingTimes) / exp.numRuns
+        trainingTimeSD = sqrt(sum((exp.trainingTimes .- trainingTimeMean).^2) / (exp.numRuns - 1))
+        println(" - Setup time: $(trainingTimeMean) seconds (σ = $(trainingTimesSD))")
+    elseif exp.numRuns == 1
+        println("Results from a single experiment run with architecture \"$(exp.architecture.name)\":")
+
+        accuracyMean = sum(exp.accuracyResults) / exp.numRuns
+        println(" - Accuracy: $(accuracyMean*100) %")
+
+        setupTimeMean = sum(exp.setupTimes) / exp.numRuns
+        println(" - Setup time: $(setupTimeMean) seconds")
+
+        trainingTimeMean = sum(exp.trainingTimes) / exp.numRuns
+        println(" - Setup time: $(trainingTimeMean) seconds")
     else
         println("No results available for experiment with architecture \"$(exp.architecture.name)\".")
     end
