@@ -3,6 +3,7 @@
 export
     GCNKernel,
     numParts,
+    IdentityKernel,
     FixedMatrixKernel,
     FixedLowRankKernel,
     PolyLaplacianKernel,

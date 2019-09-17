@@ -283,6 +283,7 @@ function fillFeedDict(tfk :: TFLowRankInvLaplacianKernel, dataset :: Dataset, di
     λ, U = getLaplacianEigenvalues(dataset.graph,
                 tfk.kernel.rank, :smallnonzero, tfk.kernel.smoother)
     dict[tfk.UTensor] = U
+    println("Smallest nonzero eigenvector: $(minimum(λ))")
     dict[tfk.kernelDiagTensor] = hcat(minimum(λ) ./ λ)
 end
 
@@ -341,7 +342,7 @@ mutable struct TensorFlowGCN
 
     function TensorFlowGCN(arch :: GCNArchitecture;
             # optimizer = tf.train.AdamOptimizer(0.01) :: tf.train.Optimizer)
-            optimizer = tf.train.GradientDescentOptimizer(0.2) :: tf.train.Optimizer)
+            optimizer :: tf.train.Optimizer = tf.train.GradientDescentOptimizer(0.2))
 
         self = new(arch)
 
@@ -446,7 +447,7 @@ end
 Assign the given weight values to the GCN's  weight variables in the given
 session.
 """
-function importWeights(gcn :: TensorFlowGCN, sess :: tf.Session, weights :: Vector{Vector{<: Array{Float64}}})
+function importWeights(gcn :: TensorFlowGCN, sess :: tf.Session, weights :: Vector{<: Vector{<: Array{Float64}}})
     for i = 1:length(gcn.weightVars)
         for j = 1:length(gcn.weightVars[i])
             tf.run(sess, tf.assign(gcn.weightVars[i][j], weights[i][j]))

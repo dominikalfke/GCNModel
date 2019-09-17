@@ -235,11 +235,11 @@ function fillFeedDict(tfk :: TFPolyHypergraphLaplacianKernel, dataset :: Dataset
 		a = tfk.kernel.coeffs[i]
 		d = length(a) - 1
 		degrees[i] = d
-		b[i] = [sum(binomial.(k:d, k) .* a[k+1:end]) for k=0:d]
+		b[i] = [dot(binomial.(k:d, k), a[k+1:end]) for k=0:d]
 	end
 
 	M = Any[UniformScaling(degrees[i] == 0 ? 0.0 : -b[i][2]) for i=1:K]
-	if any(degrees .> 0)
+	if any(degrees .> 1)
 		HtH = H' * H
 		negHtHPower = UniformScaling(-1.0)
 
@@ -402,7 +402,7 @@ end
 
 
 """
-	LowRankInvHypergraphLaplacianKernel
+	InvHypergraphLaplacianKernel
 
 `GCNKernel` subtype for efficient evaluation of the one-dimensional filter space
 spanned by the full-rank pseudoinverse filter function with the hypergraph

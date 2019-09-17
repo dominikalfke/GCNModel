@@ -8,7 +8,10 @@ export
     addRuns,
     clearResults,
     saveInJLD,
-    printSummary
+    printSummary,
+    TrainingSetRandomizer,
+    UniformTrainingSetRandomizer
+
 
 """
     Data type for a semi-supervised node classification experiment with a
@@ -180,4 +183,4 @@ mutable struct UniformTrainingSetRandomizer
     numTrainingNodesPerClass :: Int64
 end
 (r :: UniformTrainingSetRandomizer)(dataset :: Dataset) =
-    randomizeUniformTrainingSet!(dataset, r.numTrainindNodesPerClass)
+    randomizeUniformTrainingSet!(dataset, r.numTrainingNodesPerClass)

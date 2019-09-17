@@ -160,7 +160,7 @@ function getSparseAdjacency(g :: EdgeListGraph)
 	V = zeros(2*numEdges)
 	for i = 1:numEdges
 		I[2*i-1], J[2*i-1] = J[2*i], I[2*i] = g.edges[i]
-		V[2*i-1] = V[2*i] = weights[i]
+		V[2*i-1] = V[2*i] = g.weights[i]
 	end
 	return sparse(I, J, V, g.numNodes, g.numNodes)
 end
