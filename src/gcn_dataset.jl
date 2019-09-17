@@ -191,7 +191,7 @@ be given by the second argument `numTrainingNodes`. If omitted, the former numbe
 training nodes will be maintained.
 """
 function randomizeTrainingSet!(dataset :: Dataset,
-            numTrainingNodes = length(dataset.trainingSet):: Int64)
+            numTrainingNodes :: Int = length(dataset.trainingSet))
     cycle = randcycle(dataset.numNodes)
     dataset.trainingSet = cycle[1:numTrainingNodes]
     dataset.testSet = cycle[numTrainingNodes+1:end]

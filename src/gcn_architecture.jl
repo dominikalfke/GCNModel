@@ -62,7 +62,7 @@ mutable struct PolyLaplacianKernel <: GCNKernel
     smoother
 end
 PolyLaplacianKernel(coeffs :: Vector{Vector{Float64}};
-        smoother = nothing :: Any) =
+        smoother = nothing) =
     PolyLaplacianKernel(coeffs, smoother)
 
 numParts(kernel :: PolyLaplacianKernel) =
@@ -84,9 +84,9 @@ mutable struct LowRankPolyLaplacianKernel <: GCNKernel
     isReduced :: Bool
 end
 LowRankPolyLaplacianKernel(coeffs :: Vector{Vector{Float64}}, rank :: Int64;
-        whichEV = :small :: Symbol,
+        whichEV :: Symbol = :small,
         smoother = nothing,
-        isReduced = false :: Bool) =
+        isReduced :: Bool = false) =
     LowRankPolyLaplacianKernel(coeffs, rank, whichEV,
         smoother, isReduced)
 
@@ -107,7 +107,7 @@ mutable struct LowRankInvLaplacianKernel <: GCNKernel
 end
 LowRankInvLaplacianKernel(rank :: Int64;
         smoother = nothing,
-        isReduced = false :: Bool) =
+        isReduced :: Bool = false) =
     LowRankInvLaplacianKernel(rank, smoother, isReduced)
 
 
@@ -132,9 +132,9 @@ mutable struct GCNArchitecture
     regParam :: Float64
 
     GCNArchitecture(layerWidths :: Vector{Int64}, kernel :: GCNKernel;
-            name = "GCN" :: String,
-            activation = :relu :: Symbol,
-            regParam = 5e-4 :: Float64) =
+            name :: String = "GCN",
+            activation :: Symbol = :relu,
+            regParam :: Float64 = 5e-4) =
         new(name, kernel, layerWidths, activation, regParam)
 
 end

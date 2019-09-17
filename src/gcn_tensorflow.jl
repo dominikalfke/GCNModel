@@ -341,7 +341,7 @@ mutable struct TensorFlowGCN
     optimizingOp :: tf.Tensor
 
     function TensorFlowGCN(arch :: GCNArchitecture;
-            # optimizer = tf.train.AdamOptimizer(0.01) :: tf.train.Optimizer)
+            # optimizer :: tf.train.Optimizer = tf.train.AdamOptimizer(0.01))
             optimizer :: tf.train.Optimizer = tf.train.GradientDescentOptimizer(0.2))
 
         self = new(arch)

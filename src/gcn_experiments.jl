@@ -67,7 +67,7 @@ Perform a number of test runs of an experiment and store the results in the
 experiment object. If `printInterval` is nonzero, accuracy summaries are printed
 every few runs.
 """
-function addRuns(exp :: Experiment, numRuns :: Int; printInterval = 0 :: Int64)
+function addRuns(exp :: Experiment, numRuns :: Int; printInterval :: Int64 = 0)
 
     @load exp.datasetFile dataset
 
@@ -124,7 +124,7 @@ Open or create an JLD file and store an experiment object and a short summary
 in it under a given name, and add this name to a list of experiment names
 stored in the file.
 """
-function saveInJLD(exp :: Experiment, filename :: String, expName = "" :: String)
+function saveInJLD(exp :: Experiment, filename :: String, expName :: String = "")
     # jldopen(filename, "a") do file
     jldopen(filename, false, true, true, false, true) do file
         if isempty(expName)

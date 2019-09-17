@@ -145,9 +145,9 @@ mutable struct PolySmoothedHypergraphLaplacianKernel <: GCNKernel
     α :: Float64
     β :: Float64
 end
-PolySmoothedHypergraphLaplacianKernel(coeffs :: Vector{Vector{Float64}}; α = 0.0 :: Float64, β = 0.0 :: Float64) =
+PolySmoothedHypergraphLaplacianKernel(coeffs :: Vector{Vector{Float64}}; α :: Float64 = 0.0, β :: Float64 = 0.0) =
 	PolySmoothedHypergraphLaplacianKernel(coeffs, α, β)
-PolySmoothedHypergraphLaplacianKernel(singleCoeffs :: Vector{Float64}; α = 0.0 :: Float64, β = 0.0 :: Float64) =
+PolySmoothedHypergraphLaplacianKernel(singleCoeffs :: Vector{Float64}; α :: Float64 = 0.0, β:: Float64 = 0.0) =
 	PolySmoothedHypergraphLaplacianKernel([singleCoeffs], α, β)
 
 numParts(k :: PolySmoothedHypergraphLaplacianKernel) = length(k.coeffs)
@@ -273,6 +273,9 @@ mutable struct LowRankPolyHypergraphLaplacianKernel <: GCNKernel
 	whichEV :: Symbol
 	isReduced :: Bool
 end
+LowRankPolyHypergraphLaplacianKernel(coeffs :: Vector{Vector{Float64}}, rank :: Int64;
+		whichEV :: Symbol = :small, isReduced :: Bool = false) =
+	LowRankPolyHypergraphLaplacianKernel(coeffs, rank, whichEV, isReduced)
 numParts(kernel :: LowRankPolyHypergraphLaplacianKernel) = length(kernel.coeffs)
 
 
