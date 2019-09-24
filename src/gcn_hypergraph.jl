@@ -79,11 +79,11 @@ end
 """
 	removeEmptyHyperEdges!(h :: Hypergraph)
 
-Removes zero columns from the hypergraph's incidence matrix, as well as the
-corresponding edge weights and degrees.
+Removes columns from the hypergraph's incidence matrix that have one or less
+entries, as well as the corresponding edge weights and degrees.
 """
 function removeEmptyHyperEdges!(h :: Hypergraph)
-    doKeep = h.edgeDegrees .> 0
+    doKeep = h.edgeDegrees .>= 2.0
     h.incidence = h.incidence[:, doKeep]
     h.weights = h.weights[doKeep]
 	h.edgeDegrees = h.edgeDegrees[doKeep]
