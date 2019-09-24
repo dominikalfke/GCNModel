@@ -161,7 +161,7 @@ function printSummary(exp :: Experiment)
 
         trainingTimeMean = sum(exp.trainingTimes) / exp.numRuns
         trainingTimeSD = sqrt(sum((exp.trainingTimes .- trainingTimeMean).^2) / (exp.numRuns - 1))
-        println(" - Setup time: $(trainingTimeMean) seconds (σ = $(trainingTimeSD))")
+        println(" - Training time: $(trainingTimeMean) seconds (σ = $(trainingTimeSD))")
     elseif exp.numRuns == 1
         println("Results from a single experiment run with architecture \"$(exp.architecture.name)\":")
 
@@ -172,7 +172,7 @@ function printSummary(exp :: Experiment)
         println(" - Setup time: $(setupTimeMean) seconds")
 
         trainingTimeMean = sum(exp.trainingTimes) / exp.numRuns
-        println(" - Setup time: $(trainingTimeMean) seconds")
+        println(" - Training time: $(trainingTimeMean) seconds")
     else
         println("No results available for experiment with architecture \"$(exp.architecture.name)\".")
     end
@@ -196,7 +196,7 @@ end
 
 Functor struct that can be passed to the `Experiment` constructor as the
 `randomizer` keyword argument. Before each run, a new set of training nodes
-will be chosen, where the number of nodes with each label is fixed. The
+will be chosen, where the number of nodes from each class is fixed. The
 `randomizeUniformTrainingSet!` function is called.
 """
 mutable struct UniformTrainingSetRandomizer

@@ -49,17 +49,19 @@ TFKernel(:: IdentityKernel) = TFIdentityKernel()
 
 """
     Y = applyLayer(tfk :: TFKernel, XParts :: Vector{<: TensorFlow.Tensor})
-    Y = applyLayer(tfk :: TFKernel, X :: TensorFlow.Tensor, weights :: Vector{TensorFlow.Variable})
+    Y = applyLayer(tfk :: TFKernel, X :: TensorFlow.Tensor, weights :: Vector{<: TensorFlow.Variable}, l :: Int)
 
 Perform a layer operation, i.e. compute a TensorFlow tensor for the operation
-`Y = \\sum_i K_i X_l Θ_il`. A `TensorFlowGCN` object calls the second form
+`Y = \\sum_i K_i X_{l-1} Θ_il`. A `TensorFlowGCN` object calls the second form
 of this function, which by default calls the first form with the argument
-`XParts` holding the tensors for the `X_l Θ_il` products. `TFKernel` subtypes
-must override one of these methods.
+`XParts` holding the tensors for the `X_{l-1} Θ_il` products. `TFKernel`
+subtypes must override one of these methods. The second, more general form
+allows for different layer operations in different layers, which is hardly used
+in GCN contexts.
 """
-applyLayer(tfk :: TFKernel, XParts :: Vector{<: tf.Tensor}) = sum(XParts)
+applyLayer(tfk :: TFKernel, XParts :: Vector{<: tf.Tensor}) = tf.add_n(XParts)
 
-applyLayer(tfk :: TFKernel, X :: tf.Tensor, weights :: Vector{tf.Variable}) =
+applyLayer(tfk :: TFKernel, X :: tf.Tensor, weights :: Vector{<: tf.Variable}, l :: Int) =
     applyLayer(tfk, [X * Θ for Θ in weights])
 
 """
@@ -283,7 +285,7 @@ function fillFeedDict(tfk :: TFLowRankInvLaplacianKernel, dataset :: Dataset, di
     λ, U = getLaplacianEigenvalues(dataset.graph,
                 tfk.kernel.rank, :smallnonzero, tfk.kernel.smoother)
     dict[tfk.UTensor] = U
-    println("Smallest nonzero eigenvector: $(minimum(λ))")
+    # println("Smallest nonzero eigenvector: $(minimum(λ))")
     dict[tfk.kernelDiagTensor] = hcat(minimum(λ) ./ λ)
 end
 
@@ -360,21 +362,21 @@ mutable struct TensorFlowGCN
         X = transformInput(self.tfKernel, X)
         push!(self.hiddenLayers, X)
 
+        L = length(arch.layerWidths)-1
         numKernelParts = numParts(arch.kernel)
-        for i = 1:length(arch.layerWidths)-1
+        for l = 1:L
             weights = [
                     #tf.get_variable("Weight_layer$(i)_kernel$(j)",
                     #    shape=arch.layerWidths[i:i+1], dtype=Float64)
                     tf.Variable(
-                        sqrt(6.0/sum(arch.layerWidths[i:i+1])) *
-                            (1 .- 2*rand(Float64, arch.layerWidths[i], arch.layerWidths[i+1])),
-                        name = "Weight_layer$(i)_kernel$(j)")
+                        sqrt(6.0/sum(arch.layerWidths[l:l+1])) *
+                            (1 .- 2*rand(Float64, arch.layerWidths[l], arch.layerWidths[l+1])),
+                        name = "Weight_layer$(l)_kernel$(j)")
                 for j = 1:numKernelParts]
             push!(self.weightVars, weights)
 
-            X = applyLayer(self.tfKernel,
-                [tf.Ops.mat_mul(X, Θ) for Θ in weights])
-            if i < length(arch.layerWidths)-1
+            X = applyLayer(self.tfKernel, X, weights, l)
+            if l < L
                 X = applyActivation(arch.activation, X)
             end
             push!(self.hiddenLayers, X)
