@@ -159,16 +159,16 @@ function printSummary(exp :: Experiment)
     meanAccuracy = sum(exp.accuracyResults)/N
     if N == 1
         println("Results from a single experiment run with architecture \"$(exp.architecture.name)\":")
-        @printf(" - Accuracy: %.4f%%\n", meanAccuracy*100)
-        @printf(" - Setup time: %.2f seconds", meanSetupTime)
-        @printf(" - Training time: %.2f seconds", meanTrainingTime)
+        @printf(" - Accuracy: %.4f%%\n", 100*meanAccuracy)
+        @printf(" - Setup time: %.2fs\n", meanSetupTime)
+        @printf(" - Training time: %.2fs\n", meanTrainingTime)
     else
         println("Average results from $N experiment runs with architecture \"$(exp.architecture.name)\":")
         @printf(" - Accuracy: %.4f%% ± %.4f\n", 100*meanAccuracy,
             100*sqrt(sum((exp.accuracyResults .- meanAccuracy).^2)/(N-1)))
-        @printf(" - Setup time: %.2f seconds ± %.2f\n",
+        @printf(" - Setup time: %.2fs ± %.2f\n",
             meanSetupTime, sqrt(sum((exp.setupTimes .- meanSetupTime).^2)/(N-1)))
-        @printf(" - Training time: %.2f seconds ± %.2f\n",
+        @printf(" - Training time: %.2fs ± %.2f\n",
             meanTrainingTime, sqrt(sum((exp.trainingTimes .- meanTrainingTime).^2)/(N-1)))
     end
 end
