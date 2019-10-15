@@ -485,8 +485,10 @@ Note that in a typical workflow, calling this function is the first time that
 any large matrices are constructed.
 """
 function createFeedDicts(gcn :: TensorFlowGCN, dataset :: Dataset)
-    @assert(dataset.numFeatures == gcn.architecture.layerWidths[1])
-    @assert(dataset.numLabels == gcn.architecture.layerWidths[end])
+    dataset.numFeatures == gcn.architecture.layerWidths[1] ||
+        error("Number of features in dataset $(dataset.name) does not match the first layer width")
+    dataset.numLabels == gcn.architecture.layerWidths[end] ||
+        error("Number of classes in dataset $(dataset.name) does not match the last layer width")
 
     feedDictTrain = Dict{tf.Tensor, Any}(
         gcn.features => dataset.features)
