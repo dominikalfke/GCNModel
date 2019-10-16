@@ -61,50 +61,13 @@ getAverageAccuracy(exp :: Experiment) =
     exp.numRuns == 0 ? NaN : sum(exp.accuracyResults) / exp.numRuns
 
 
-"""
-    addRuns(exp :: Experiment, numRuns :: Int; printInterval = 0 :: Int64)
-
-Perform a number of test runs of an experiment and store the results in the
-experiment object. If `printInterval` is nonzero, accuracy summaries are printed
-every few runs.
-"""
-function addRuns(exp :: Experiment, numRuns :: Int; printInterval :: Int64 = 0)
-
-    @load exp.datasetFile dataset
-
-    lastPrintRun = exp.numRuns
-
-    for incRun = 1:numRuns
-
-        tf.set_def_graph(tf.Graph())
-
-        gcn = TensorFlowGCN(exp.architecture)
-
-        if exp.randomizer != nothing
-            exp.randomizer(dataset)
-        end
-
-        sess, feedDictTest, setupTime, trainingTime =
-            createTrainedSession(gcn, dataset, exp.numTrainingIter)
-
-        accuracy = tf.run(sess, gcn.accuracy, feedDictTest)
-
-        close(sess)
-
-        exp.numRuns += 1
-        push!(exp.accuracyResults, accuracy)
-        push!(exp.setupTimes, setupTime)
-        push!(exp.trainingTimes, trainingTime)
-
-        if printInterval == 1
-            println("Run $(exp.numRuns))/$numRuns: Accuracy $(100*accuracy)%")
-        elseif printInterval > 0 && (incRun % printInterval == 0 || incRun == numRuns)
-            println("Runs $(lastPrintRun+1)-$(exp.numRuns)/$numRuns: Average accuracy $(100*sum(exp.accuracyResults[lastPrintRun+1:end])/(exp.numRuns-lastPrintRun))%")
-            lastPrintRun = incRun
-        end
-
-    end
+function addRunResults!(exp :: Experiment, accuracy :: Float64, setupTime :: Float64, trainingTime :: Float64)
+    exp.numRuns += 1
+    push!(exp.accuracyResults, accuracy)
+    push!(exp.setupTimes, setupTime)
+    push!(exp.trainingTimes, trainingTime)
 end
+
 
 """
     clearResults(exp :: Experiment)

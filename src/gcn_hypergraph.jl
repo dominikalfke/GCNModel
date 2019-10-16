@@ -6,15 +6,10 @@ export
 	transformIntoGraph,
 	HypergraphSmoother,
 	PolySmoothedHypergraphLaplacianKernel,
-	TFPolySmoothedHypergraphLaplacianKernel,
 	PolyHypergraphLaplacianKernel,
-	TFPolyHypergraphLaplacianKernel,
 	LowRankPolyHypergraphLaplacianKernel,
-	TFLowRankPolyHypergraphLaplacianKernel,
 	LowRankInvHypergraphLaplacianKernel,
-	TFLowRankInvHypergraphLaplacianKernel,
-	InvHypergraphLaplacianKernel,
-	TFInvHypergraphLaplacianKernel
+	InvHypergraphLaplacianKernel
 
 # Type for Hypergraphs given by their incidence matrix
 
@@ -53,23 +48,9 @@ end
 getNumNodes(h :: Hypergraph) = size(h.incidence, 1)
 getNumEdges(h :: Hypergraph) = size(h.incidence, 2)
 
-function getDenseAdjacency(h :: Hypergraph)
-    # n, m = size(h.incidence)
-	#
-    # adj = zeros(n,n)
-    # for i = 1:n
-    #     for j = 1:i-1
-    #         for k = 1:m
-    #             if h.incidence[i,k] > 0 && h.incidence[j,k] > 0
-    #                 adj[i,j] += h.weights[k]
-    #             end
-    #         end
-    #         adj[j,i] = adj[i,j]
-    #     end
-    # end
-    # return adj
-	return h.incidence * Diagonal(h.weights ./ h.edgeDegrees) * h.incidence' - Diagonal(h.loopWeights)
-end
+getDenseAdjacency(h :: Hypergraph) =
+	h.incidence * Diagonal(h.weights ./ h.edgeDegrees) * h.incidence' - Diagonal(h.loopWeights)
+
 isSparse(:: Hypergraph) = false
 
 function getSubGraph(h :: Hypergraph, ind :: Vector{Int64})
@@ -152,39 +133,6 @@ PolySmoothedHypergraphLaplacianKernel(singleCoeffs :: Vector{Float64}; α :: Flo
 
 numParts(k :: PolySmoothedHypergraphLaplacianKernel) = length(k.coeffs)
 
-mutable struct TFPolySmoothedHypergraphLaplacianKernel <: TFKernel
-	kernel :: PolySmoothedHypergraphLaplacianKernel
-	diagPartTensor :: tf.Tensor
-	lowRankFactorTensor :: tf.Tensor
-end
-function TFKernel(k :: PolySmoothedHypergraphLaplacianKernel)
-	return TFPolySmoothedHypergraphLaplacianKernel(k,
-		tf.placeholder(Float64, shape=[missing, 1], name="kernelDiagPart"),
-		tf.placeholder(Float64, shape=[missing,missing], name="kernelLowRankFactor"))
-end
-function applyLayer(tfk::TFPolySmoothedHypergraphLaplacianKernel, XParts :: Vector{<: tf.Tensor})
-	parts = tf.Tensor[]
-	for i in 1:length(XParts)
-		x = XParts[i]
-		push!(parts, tfk.kernel.coeffs[i][1] * x)
-		for c in tfk.kernel.coeffs[i][2:end]
-			x = (tfk.diagPartTensor .* x) - tfk.lowRankFactorTensor * (tfk.lowRankFactorTensor' * x)
-			push!(parts, c * x)
-		end
-	end
-	return sum(parts)
-end
-function fillFeedDict(tfk :: TFPolySmoothedHypergraphLaplacianKernel, dataset :: Dataset, dict :: Dict)
-	k = tfk.kernel
-	h = dataset.graph
-	@assert h isa Hypergraph
-	s = k.α .+ (k.β-1)*h.loopWeights
-	dict[tfk.diagPartTensor] = hcat(1.0 .- (s ./ (h.nodeDegrees .+ s))) # hcat transforms vector into matrix
-	dict[tfk.lowRankFactorTensor] =
-		Diagonal(1 ./ sqrt.(h.nodeDegrees .+ s)) * h.incidence * Diagonal(sqrt.(h.weights./h.edgeDegrees))
-	return dict
-end
-
 
 """
 	PolyHypergraphLaplacianKernel
@@ -196,69 +144,6 @@ mutable struct PolyHypergraphLaplacianKernel <: GCNKernel
 	coeffs :: Vector{Vector{Float64}}
 end
 numParts(k :: PolyHypergraphLaplacianKernel) = length(k.coeffs)
-
-mutable struct TFPolyHypergraphLaplacianKernel <: TFKernel
-	kernel :: PolyHypergraphLaplacianKernel
-	bTensors :: Vector{<: tf.Tensor}
-	HTensor :: tf.Tensor
-	MTensors :: Vector{<: tf.Tensor}
-end
-function TFKernel(k :: PolyHypergraphLaplacianKernel)
-	K = numParts(k)
-	return TFPolyHypergraphLaplacianKernel(k,
-		[tf.placeholder(Float64, shape=[], name="kernel_b$i") for i=1:K],
-		tf.placeholder(Float64, shape=[missing,missing], name="kernel_H"),
-		[tf.placeholder(Float64, shape=[missing,missing], name="kernel_M$i") for i=1:K])
-end
-function applyLayer(tfk :: TFPolyHypergraphLaplacianKernel, XParts :: Vector{<: tf.Tensor})
-	K = length(XParts)
-	scaledParts = tf.Tensor[tfk.bTensors[i] .* XParts[i] for i=1:K]
-	lowrankParts = tf.Tensor[]
-	for i=1:K
-		degree = length(tfk.kernel.coeffs[i]) - 1
-		if degree == 1
-			push!(lowrankParts, tfk.MTensors[i] .* (tfk.HTensor'*XParts[i])) # M is scalar
-		elseif degree > 1
-			push!(lowrankParts, tfk.MTensors[i] * (tfk.HTensor'*XParts[i])) # M is matrix
-		end
-	end
-	return tf.Ops.add_n(scaledParts) + tfk.HTensor * tf.Ops.add_n(lowrankParts)
-end
-function fillFeedDict(tfk :: TFPolyHypergraphLaplacianKernel, dataset :: Dataset, dict :: Dict)
-	hg = dataset.graph :: Hypergraph
-	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
-
-	K = numParts(tfk.kernel)
-	degrees = zeros(Int, K)
-	b = [Float64[] for i = 1:K]
-	for i = 1:K
-		a = tfk.kernel.coeffs[i]
-		d = length(a) - 1
-		degrees[i] = d
-		b[i] = [dot(binomial.(k:d, k), a[k+1:end]) for k=0:d]
-	end
-
-	M = Any[UniformScaling(degrees[i] == 0 ? 0.0 : -b[i][2]) for i=1:K]
-	if any(degrees .> 1)
-		HtH = H' * H
-		negHtHPower = UniformScaling(-1.0)
-
-		for k in 2:maximum(degrees)
-			negHtHPower *= - HtH # in each iteration: negHtHPower == -(-H'*H)^(k-1) == (-1)^k (H'*H)^(k-1)
-			for i in 1:K
-				if degrees[i] >= k
-					M[i] += b[i][k+1] * negHtHPower
-				end
-			end
-		end
-	end
-
-	dict[tfk.HTensor] = H
-	for i in 1:K
-		dict[tfk.bTensors[i]] = b[i][1]
-		dict[tfk.MTensors[i]] = isa(M[i], UniformScaling) ? hcat(M[i].λ) : M[i]
-	end
-end
 
 
 """
@@ -279,71 +164,6 @@ LowRankPolyHypergraphLaplacianKernel(coeffs :: Vector{Vector{Float64}}, rank :: 
 numParts(kernel :: LowRankPolyHypergraphLaplacianKernel) = length(kernel.coeffs)
 
 
-mutable struct TFLowRankPolyHypergraphLaplacianKernel <: TFKernel
-	kernel :: LowRankPolyHypergraphLaplacianKernel
-    UTensor :: tf.Tensor
-    kernelDiagTensors :: Vector{tf.Tensor}
-end
-function TFKernel(kernel :: LowRankPolyHypergraphLaplacianKernel)
-    TFLowRankPolyHypergraphLaplacianKernel(kernel,
-        tf.placeholder(Float64, shape=[missing, kernel.rank], name="U"),
-        [tf.placeholder(Float64, shape=[kernel.rank, 1], name="KernelDiag$i")
-            for i in 1:numParts(kernel)])
-end
-
-function applyLayer(tfk :: TFLowRankPolyHypergraphLaplacianKernel, XParts :: Vector{tf.Tensor{Float64}})
-    numParts = length(XParts)
-    if tfk.kernel.isReduced
-        parts = [tfk.kernelDiagTensors[i] .* XParts[i] for i = 1:numParts]
-        return numParts == 1 ? parts[1] : tf.Ops.add_n(parts)
-    else
-        parts = [tfk.kernelDiagTensors[i] .* (tfk.UTensor' * XParts[i])
-                    for i = 1:numParts]
-        return tfk.UTensor * (numParts == 1 ? parts[1] : tf.Ops.add_n(parts))
-    end
-end
-transformInput(tfk :: TFLowRankPolyHypergraphLaplacianKernel, input :: tf.Tensor) =
-    tfk.kernel.isReduced ? tfk.UTensor' * input : input
-transformOutput(tfk :: TFLowRankPolyHypergraphLaplacianKernel, output :: tf.Tensor) =
-    tfk.kernel.isReduced ? tfk.UTensor * output : output
-
-function fillFeedDict(tfk :: TFLowRankPolyHypergraphLaplacianKernel, dataset :: Dataset, dict :: Dict)
-
-	hg = dataset.graph :: Hypergraph
-	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
-
-	if tfk.kernel.whichEV == :small
-		firstEV = 1
-		numEV = tfk.kernel.rank
-	elseif tfk.kernel.whichEV == :smallnonzero
-		firstEV = 2
-		numEV = tfk.kernel.rank+1
-	else
-		throw(ArgumentError("Unsupported eigenvalue specifier: $(tfk.kernel.whichEV)"))
-	end
-
-	if numEV > minimum(size(H))
-		throw(ArgumentError(
-			"Requested number of eigenvalues $(lastEV) is larger than the incidence matrix allows"))
-	elseif 2*numEV > minimum(size(H))
-		U, Σ = svd(H)
-	else
-		(U,Σ), = Arpack.svds(H, nsv=numEV)
-	end
-	U = U[:, firstEV:numEV]
-	λ = 1 .- Σ[firstEV:numEV].^2
-
-    dict[tfk.UTensor] = U
-    for i = 1:numParts(tfk.kernel)
-        d = zeros(tfk.kernel.rank)
-        for j = 1:length(tfk.kernel.coeffs[i])
-            d += tfk.kernel.coeffs[i][j] * λ.^(j-1)
-        end
-        dict[tfk.kernelDiagTensors[i]] = hcat(d)
-    end
-end
-
-
 
 
 """
@@ -358,51 +178,6 @@ mutable struct LowRankInvHypergraphLaplacianKernel <: GCNKernel
 	isReduced :: Bool
 end
 
-mutable struct TFLowRankInvHypergraphLaplacianKernel <: TFKernel
-	kernel :: LowRankInvHypergraphLaplacianKernel
-	UTensor :: tf.Tensor
-	kernelDiagTensor :: tf.Tensor
-end
-
-function TFKernel(kernel :: LowRankInvHypergraphLaplacianKernel)
-    return TFLowRankInvHypergraphLaplacianKernel(kernel,
-        tf.placeholder(Float64, shape=[missing, kernel.rank], name="U"),
-        tf.placeholder(Float64, shape=[kernel.rank, 1], name="kernelDiag"))
-end
-
-function applyLayer(tfk :: TFLowRankInvHypergraphLaplacianKernel, XParts :: Vector{tf.Tensor{Float64}})
-    if tfk.kernel.isReduced
-        return tfk.kernelDiagTensor .* XParts[1]
-    else
-        return tfk.UTensor * (tfk.kernelDiagTensor .* (tfk.UTensor' * XParts[1]))
-    end
-end
-transformInput(tfk :: TFLowRankInvHypergraphLaplacianKernel, input :: tf.Tensor) =
-    tfk.kernel.isReduced ? tfk.UTensor' * input : input
-transformOutput(tfk :: TFLowRankInvHypergraphLaplacianKernel, output :: tf.Tensor) =
-    tfk.kernel.isReduced ? tfk.UTensor * output : output
-
-function fillFeedDict(tfk :: TFLowRankInvHypergraphLaplacianKernel, dataset :: Dataset, dict :: Dict)
-
-	hg = dataset.graph :: Hypergraph
-	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
-
-	numEV = tfk.kernel.rank+1
-	if numEV > minimum(size(H))
-		throw(ArgumentError(
-			"Requested number of eigenvalues $(numEV) is larger than the incidence matrix allows"))
-	elseif 2*numEV > minimum(size(H))
-		U, Σ = svd(H)
-	else
-		(U,Σ), = Arpack.svds(H, nsv=numEV)
-	end
-	λ = 1 .- Σ[2:numEV].^2
-
-    dict[tfk.UTensor] = U[:,2:numEV]
-    dict[tfk.kernelDiagTensor] = hcat(minimum(λ) ./ λ)
-end
-
-
 
 """
 	InvHypergraphLaplacianKernel
@@ -412,34 +187,3 @@ spanned by the full-rank pseudoinverse filter function with the hypergraph
 Laplacian.
 """
 struct InvHypergraphLaplacianKernel <: GCNKernel end
-
-
-mutable struct TFInvHypergraphLaplacianKernel <: TFKernel
-	UTensor :: tf.Tensor
-	kernelDiagTensor :: tf.Tensor
-	λminTensor :: tf.Tensor
-end
-
-TFKernel(:: InvHypergraphLaplacianKernel) = TFInvHypergraphLaplacianKernel(
-	tf.placeholder(Float64, shape=[missing, missing], name="U"),
-	tf.placeholder(Float64, shape=[missing, 1], name="kernelDiag"),
-	tf.placeholder(Float64, shape=[], name="lambdamin"))
-
-
-applyLayer(tfk :: TFInvHypergraphLaplacianKernel, XParts :: Vector{tf.Tensor{Float64}}) =
-    tfk.λminTensor .* XParts[1] + tfk.UTensor * (tfk.kernelDiagTensor .* (tfk.UTensor' * XParts[1]))
-
-
-function fillFeedDict(tfk :: TFInvHypergraphLaplacianKernel, dataset :: Dataset, dict :: Dict)
-
-	hg = dataset.graph :: Hypergraph
-	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
-
-	U, Σ = svd(H)
-	Λ = 1 .- Σ[2:end].^2
-	λmin = minimum(Λ)
-
-    dict[tfk.UTensor] = U
-    dict[tfk.kernelDiagTensor] = λmin * hcat(vcat(0, 1 ./ Λ) .- 1)
-	dict[tfk.λminTensor] = λmin
-end

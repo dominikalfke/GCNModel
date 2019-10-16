@@ -47,6 +47,8 @@ mutable struct FixedLowRankKernel <: GCNKernel
 end
 numParts(kernel :: FixedLowRankKernel) = length(kernel.diagonals)
 
+
+
 """
     PolyLaplacianKernel
 
@@ -128,13 +130,21 @@ mutable struct GCNArchitecture
     name :: String
     kernel :: GCNKernel
     layerWidths :: Vector{Int64}
-    activation :: Symbol
+    activation :: Activation
     regParam :: Float64
 
     GCNArchitecture(layerWidths :: Vector{Int64}, kernel :: GCNKernel;
             name :: String = "GCN",
-            activation :: Symbol = :relu,
+            activation :: Activation = Relu(),
             regParam :: Float64 = 5e-4) =
         new(name, kernel, layerWidths, activation, regParam)
 
+end
+
+
+function checkLayerWidths(arc :: GCNArchitecture, dataset :: Dataset)
+    dataset.numFeatures == arc.layerWidths[1] ||
+        error("Number of features in dataset $(dataset.name) does not match the first layer width")
+    dataset.numLabels == arc.layerWidths[end] ||
+        error("Number of classes in dataset $(dataset.name) does not match the last layer width")
 end
