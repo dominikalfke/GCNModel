@@ -133,6 +133,12 @@ PolySmoothedHypergraphLaplacianKernel(singleCoeffs :: Vector{Float64}; α :: Flo
 
 numParts(k :: PolySmoothedHypergraphLaplacianKernel) = length(k.coeffs)
 
+function setupMatrices(kernel :: PolySmoothedHypergraphLaplacianKernel, dataset :: Dataset)
+	h = dataset.graph :: Hypergraph
+	s = kernel.α .+ (kernel.β-1)*h.loopWeights
+	return (1.0 .- (s ./ (s ./ (h.nodeDegrees .+ s))),
+		Diagonal(1 ./ sqrt.(h.nodeDegrees .+ s)) * h.incidence * Diagonal(sqrt.(h.weights./h.edgeDegrees)))
+end
 
 """
 	PolyHypergraphLaplacianKernel
@@ -145,6 +151,38 @@ mutable struct PolyHypergraphLaplacianKernel <: GCNKernel
 end
 numParts(k :: PolyHypergraphLaplacianKernel) = length(k.coeffs)
 
+function setupMatrices(kernel :: PolyHypergraphLaplacianKernel, dataset :: Dataset)
+	hg = dataset.graph :: Hypergraph
+	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
+
+	K = numParts(kernel)
+	degrees = zeros(Int, K)
+	b = [Float64[] for i = 1:K]
+	for i = 1:K
+		a = kernel.coeffs[i]
+		d = length(a) - 1
+		degrees[i] = d
+		b[i] = [dot(binomial.(k:d, k), a[k+1:end]) for k=0:d]
+	end
+
+	M = Any[UniformScaling(degrees[i] == 0 ? 0.0 : -b[i][2]) for i=1:K]
+	if any(degrees .> 1)
+		HtH = H' * H
+		negHtHPower = UniformScaling(-1.0)
+
+		for k in 2:maximum(degrees)
+			negHtHPower *= - HtH # in each iteration: negHtHPower == -(-H'*H)^(k-1) == (-1)^k (H'*H)^(k-1)
+			for i in 1:K
+				if degrees[i] >= k
+					M[i] += b[i][k+1] * negHtHPower
+				end
+			end
+		end
+	end
+
+	# vector of scaling factors, H-matrix, vector of M-matrices
+	return [v[1] for v in b], H, M
+end
 
 """
 	LowRankPolyHypergraphLaplacianKernel
@@ -156,14 +194,47 @@ mutable struct LowRankPolyHypergraphLaplacianKernel <: GCNKernel
 	coeffs :: Vector{Vector{Float64}}
 	rank :: Int64
 	whichEV :: Symbol
-	isReduced :: Bool
 end
 LowRankPolyHypergraphLaplacianKernel(coeffs :: Vector{Vector{Float64}}, rank :: Int64;
-		whichEV :: Symbol = :small, isReduced :: Bool = false) =
-	LowRankPolyHypergraphLaplacianKernel(coeffs, rank, whichEV, isReduced)
+		whichEV :: Symbol = :small) =
+	LowRankPolyHypergraphLaplacianKernel(coeffs, rank, whichEV)
 numParts(kernel :: LowRankPolyHypergraphLaplacianKernel) = length(kernel.coeffs)
 
+function setupMatrices(kernel :: LowRankPolyHypergraphLaplacianKernel, dataset :: Dataset)
+	hg = dataset.graph :: Hypergraph
+	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
 
+	if kernel.whichEV == :small
+		firstEV = 1
+		numEV = kernel.rank
+	elseif kernel.whichEV == :smallnonzero
+		firstEV = 2
+		numEV = kernel.rank+1
+	else
+		throw(ArgumentError("Unsupported eigenvalue specifier: $(tfk.kernel.whichEV)"))
+	end
+
+	if numEV > minimum(size(H))
+		throw(ArgumentError(
+			"Requested number of eigenvalues $(lastEV) is larger than the incidence matrix allows"))
+	elseif 2*numEV > minimum(size(H))
+		U, Σ = svd(H)
+	else
+		(U,Σ), = Arpack.svds(H, nsv=numEV)
+	end
+	U = U[:, firstEV:numEV]
+	λ = 1 .- Σ[firstEV:numEV].^2
+
+	diags = Vector{Float64}[]
+    for i = 1:numParts(kernel)
+        d = zeros(kernel.rank)
+        for j = 1:length(kernel.coeffs[i])
+            d += kernel.coeffs[i][j] * λ.^(j-1)
+        end
+        push!(diags, d)
+    end
+	return U, d
+end
 
 
 """
@@ -175,7 +246,24 @@ Laplacian.
 """
 mutable struct LowRankInvHypergraphLaplacianKernel <: GCNKernel
 	rank :: Int64
-	isReduced :: Bool
+end
+
+function setupMatrices(kernel :: LowRankInvHypergraphLaplacianKernel, dataset :: Dataset)
+
+	hg = dataset.graph :: Hypergraph
+	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
+
+	numEV = kernel.rank+1
+	if numEV > minimum(size(H))
+		throw(ArgumentError(
+			"Requested number of eigenvalues $(numEV) is larger than the incidence matrix allows"))
+	elseif 2*numEV > minimum(size(H))
+		U, Σ = svd(H)
+	else
+		(U,Σ), = Arpack.svds(H, nsv=numEV)
+	end
+	λ = 1 .- Σ[2:numEV].^2
+	return U, λ
 end
 
 
@@ -187,3 +275,16 @@ spanned by the full-rank pseudoinverse filter function with the hypergraph
 Laplacian.
 """
 struct InvHypergraphLaplacianKernel <: GCNKernel end
+
+function setupMatrices( :: InvHypergraphLaplacianKernel, dataset :: Dataset)
+
+	hg = dataset.graph :: Hypergraph
+	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
+
+	U, Σ = svd(H)
+	Λ = 1 .- Σ[2:end].^2
+	λmin = minimum(Λ)
+
+	# scaling factor, U, diagonal of lowrank part
+	return λmin, U, λmin * (vcat(0, 1 ./ Λ) .- 1)
+end

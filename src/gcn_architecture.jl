@@ -3,6 +3,7 @@
 export
     GCNKernel,
     numParts,
+    setupMatrices,
     IdentityKernel,
     FixedMatrixKernel,
     FixedLowRankKernel,
@@ -26,6 +27,8 @@ number of weight matrices required per layer.
 """
 numParts(:: GCNKernel) = 1
 
+setupMatrices(:: GCNKernel) = nothing
+
 """
     IdentityKernel
 
@@ -38,15 +41,14 @@ mutable struct FixedMatrixKernel <: GCNKernel
     matrices :: Vector{Matrix{Float64}}
 end
 numParts(kernel :: FixedMatrixKernel) = length(kernel.matrices)
-
+setupMatrices(kernel :: FixedMatrixKernel) = kernel.matrices
 
 mutable struct FixedLowRankKernel <: GCNKernel
     projector :: Matrix{Float64}
     diagonals :: Vector{Vector{Float64}}
-    isReduced :: Bool
 end
 numParts(kernel :: FixedLowRankKernel) = length(kernel.diagonals)
-
+setupMatrices(kernel :: FixedMatrixKernel) = (kernel.projector, kernel.diagonals)
 
 
 """
@@ -70,6 +72,21 @@ PolyLaplacianKernel(coeffs :: Vector{Vector{Float64}};
 numParts(kernel :: PolyLaplacianKernel) =
     length(kernel.coeffs)
 
+function setupMatrices(kernel :: PolyLaplacianKernel, dataset :: Dataset) =
+    L = getFullLaplacian(dataset.graph, kernel.smoother)
+    X = UniformScaling(1.0)
+    kernelParts = Any[c[1]*X for c in kernel.coeffs]
+    for i = 2:maximum([length(c) for c in kernel.coeffs])
+        X = L * X
+        for j in 1:length(kernel.coeffs)
+            if length(kernel.coeffs[j]) >= i
+                kernelParts[j] += kernel.coeffs[j][i] * X
+            end
+        end
+    end
+    return kernelParts
+end
+
 """
     LowRankPolyLaplacianKernel
 
@@ -83,17 +100,28 @@ mutable struct LowRankPolyLaplacianKernel <: GCNKernel
     rank :: Int64
     whichEV :: Symbol
     smoother
-    isReduced :: Bool
 end
 LowRankPolyLaplacianKernel(coeffs :: Vector{Vector{Float64}}, rank :: Int64;
         whichEV :: Symbol = :small,
-        smoother = nothing,
-        isReduced :: Bool = false) =
-    LowRankPolyLaplacianKernel(coeffs, rank, whichEV,
-        smoother, isReduced)
+        smoother = nothing) =
+    LowRankPolyLaplacianKernel(coeffs, rank, whichEV, smoother)
 
 numParts(kernel :: LowRankPolyLaplacianKernel) =
     length(kernel.coeffs)
+
+function setupMatrices(kernel :: LowRankPolyLaplacianKernel, dataset :: Dataset)
+    λ, U = getLaplacianEigenvalues(dataset.graph,
+                kernel.rank, kernel.whichEV, kernel.smoother)
+	diagonals = Vector{Float64}[]
+    for i = 1:numParts(kernel)
+        d = zeros(length(λ))
+        for j = 1:length(kernel.coeffs[i])
+            d += kernel.coeffs[i][j] * λ.^(j-1)
+        end
+        push!(diagonals, d)
+    end
+	return U, d
+end
 
 """
     LowRankInvLaplacianKernel
@@ -111,6 +139,12 @@ LowRankInvLaplacianKernel(rank :: Int64;
         smoother = nothing,
         isReduced :: Bool = false) =
     LowRankInvLaplacianKernel(rank, smoother, isReduced)
+
+function setupMatrices(kernel :: LowRankInvLaplacianKernel, dataset :: Dataset)
+	λ, U = getLaplacianEigenvalues(dataset.graph,
+                k.rank, :smallnonzero, k.smoother)
+    return U, minimum(λ) ./ λ
+end
 
 
 """
