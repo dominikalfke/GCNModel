@@ -177,7 +177,7 @@ mutable struct GCNArchitecture
 end
 
 
-function checkCompatability(arc :: GCNArchitecture, dataset :: Dataset)
+function checkCompatibility(arc :: GCNArchitecture, dataset :: Dataset)
     dataset.numFeatures == arc.layerWidths[1] ||
         error("Number of features in dataset $(dataset.name) does not match the first layer width")
     dataset.numLabels == arc.layerWidths[end] ||
