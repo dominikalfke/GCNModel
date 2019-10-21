@@ -48,7 +48,7 @@ mutable struct FixedLowRankKernel <: GCNKernel
     diagonals :: Vector{Vector{Float64}}
 end
 numParts(kernel :: FixedLowRankKernel) = length(kernel.diagonals)
-setupMatrices(kernel :: FixedMatrixKernel) = (kernel.projector, kernel.diagonals)
+setupMatrices(kernel :: FixedLowRankKernel) = (kernel.projector, kernel.diagonals)
 
 
 """
@@ -72,7 +72,7 @@ PolyLaplacianKernel(coeffs :: Vector{Vector{Float64}};
 numParts(kernel :: PolyLaplacianKernel) =
     length(kernel.coeffs)
 
-function setupMatrices(kernel :: PolyLaplacianKernel, dataset :: Dataset) =
+function setupMatrices(kernel :: PolyLaplacianKernel, dataset :: Dataset)
     L = getFullLaplacian(dataset.graph, kernel.smoother)
     X = UniformScaling(1.0)
     kernelParts = Any[c[1]*X for c in kernel.coeffs]
@@ -176,7 +176,7 @@ mutable struct GCNArchitecture
 end
 
 
-function checkLayerWidths(arc :: GCNArchitecture, dataset :: Dataset)
+function checkCompatability(arc :: GCNArchitecture, dataset :: Dataset)
     dataset.numFeatures == arc.layerWidths[1] ||
         error("Number of features in dataset $(dataset.name) does not match the first layer width")
     dataset.numLabels == arc.layerWidths[end] ||

@@ -1,5 +1,11 @@
 
 
+export
+    Activation,
+    NoActivation,
+    Relu,
+    ReducedRelu
+
 abstract type Activation end
 
 
