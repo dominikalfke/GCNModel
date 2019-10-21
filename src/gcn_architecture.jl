@@ -10,7 +10,8 @@ export
     PolyLaplacianKernel,
     LowRankPolyLaplacianKernel,
     LowRankInvLaplacianKernel,
-    GCNArchitecture
+    GCNArchitecture,
+	checkCompatibility
 
 """
     GCNKernel
