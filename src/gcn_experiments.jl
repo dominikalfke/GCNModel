@@ -7,6 +7,7 @@ export
     Experiment,
     getAverageAccuracy,
     addRuns,
+    repeatExperimentRuns,
     clearResults,
     saveInJLD,
     printSummary,
@@ -68,6 +69,33 @@ function addRunResults!(exp :: Experiment, accuracy :: Float64, setupTime :: Flo
     push!(exp.trainingTimes, trainingTime)
 end
 
+function repeatExperimentRuns(singleRunFunction, exp :: Experiment, numRuns :: Int, printInterval :: Int = 0)
+
+    @load exp.datasetFile dataset
+
+    lastPrintRun = exp.numRuns
+    finalNumRuns = exp.numRuns + numRuns
+
+    for incRun = 1:numRuns
+
+        if exp.randomizer != nothing
+            exp.randomizer(dataset)
+        end
+
+        acc, setupTime, trainingTime = singleRunFunction(exp, dataset)
+
+        addRunResults!(exp, acc, setupTime, trainingTime)
+
+        if printInterval == 1
+            println("Run $(exp.numRuns))/$finalNumRuns: Accuracy $(100*accuracy)%")
+        elseif printInterval > 0 && (incRun % printInterval == 0 || incRun == numRuns)
+            println("Runs $(lastPrintRun+1)-$(exp.numRuns)/$finalNumRuns: Average accuracy $(100*sum(exp.accuracyResults[lastPrintRun+1:end])/(exp.numRuns-lastPrintRun))%")
+            lastPrintRun = incRun
+        end
+
+    end
+
+end
 
 """
     clearResults(exp :: Experiment)

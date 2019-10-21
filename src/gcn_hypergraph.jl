@@ -263,7 +263,7 @@ function setupMatrices(kernel :: LowRankInvHypergraphLaplacianKernel, dataset ::
 		(U,Σ), = Arpack.svds(H, nsv=numEV)
 	end
 	λ = 1 .- Σ[2:numEV].^2
-	return U, λ
+	return U[:,2:end], λ
 end
 
 
