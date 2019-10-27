@@ -87,7 +87,7 @@ function repeatExperimentRuns(singleRunFunction, exp :: Experiment, numRuns :: I
         addRunResults!(exp, acc, setupTime, trainingTime)
 
         if printInterval == 1
-            println("Run $(exp.numRuns))/$finalNumRuns: Accuracy $(100*accuracy)%")
+            println("Run $(exp.numRuns))/$finalNumRuns: Accuracy $(100*acc)%")
         elseif printInterval > 0 && (incRun % printInterval == 0 || incRun == numRuns)
             println("Runs $(lastPrintRun+1)-$(exp.numRuns)/$finalNumRuns: Average accuracy $(100*sum(exp.accuracyResults[lastPrintRun+1:end])/(exp.numRuns-lastPrintRun))%")
             lastPrintRun = incRun

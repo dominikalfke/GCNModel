@@ -133,12 +133,12 @@ PolySmoothedHypergraphLaplacianKernel(singleCoeffs :: Vector{Float64}; α :: Flo
 
 numParts(k :: PolySmoothedHypergraphLaplacianKernel) = length(k.coeffs)
 
-function setupMatrices(kernel :: PolySmoothedHypergraphLaplacianKernel, dataset :: Dataset)
-	h = dataset.graph :: Hypergraph
-	s = kernel.α .+ (kernel.β-1)*h.loopWeights
-	return (1.0 .- (s ./ (s ./ (h.nodeDegrees .+ s))),
-		Diagonal(1 ./ sqrt.(h.nodeDegrees .+ s)) * h.incidence * Diagonal(sqrt.(h.weights./h.edgeDegrees)))
-end
+# function computeMatrices(kernel :: PolySmoothedHypergraphLaplacianKernel, dataset :: Dataset)
+# 	h = dataset.graph :: Hypergraph
+# 	s = kernel.α .+ (kernel.β-1)*h.loopWeights
+# 	return (1.0 .- (s ./ (s ./ (h.nodeDegrees .+ s))),
+# 		Diagonal(1 ./ sqrt.(h.nodeDegrees .+ s)) * h.incidence * Diagonal(sqrt.(h.weights./h.edgeDegrees)))
+# end
 
 """
 	PolyHypergraphLaplacianKernel
@@ -151,7 +151,7 @@ mutable struct PolyHypergraphLaplacianKernel <: GCNKernel
 end
 numParts(k :: PolyHypergraphLaplacianKernel) = length(k.coeffs)
 
-function setupMatrices(kernel :: PolyHypergraphLaplacianKernel, dataset :: Dataset)
+function computeMatrices(kernel :: PolyHypergraphLaplacianKernel, dataset :: Dataset)
 	hg = dataset.graph :: Hypergraph
 	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
 
@@ -200,7 +200,7 @@ LowRankPolyHypergraphLaplacianKernel(coeffs :: Vector{Vector{Float64}}, rank :: 
 	LowRankPolyHypergraphLaplacianKernel(coeffs, rank, whichEV)
 numParts(kernel :: LowRankPolyHypergraphLaplacianKernel) = length(kernel.coeffs)
 
-function setupMatrices(kernel :: LowRankPolyHypergraphLaplacianKernel, dataset :: Dataset)
+function computeMatrices(kernel :: LowRankPolyHypergraphLaplacianKernel, dataset :: Dataset)
 	hg = dataset.graph :: Hypergraph
 	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
 
@@ -225,13 +225,13 @@ function setupMatrices(kernel :: LowRankPolyHypergraphLaplacianKernel, dataset :
 	U = U[:, firstEV:numEV]
 	λ = 1 .- Σ[firstEV:numEV].^2
 
-	diags = Vector{Float64}[]
+	diags = Vector{Vector{Float64}}(undef, numParts(kernel))
     for i = 1:numParts(kernel)
-        d = zeros(kernel.rank)
-        for j = 1:length(kernel.coeffs[i])
+        d = kernel.coeffs[i][1]
+        for j = 2:length(kernel.coeffs[i])
             d += kernel.coeffs[i][j] * λ.^(j-1)
         end
-        push!(diags, d)
+        diags[i] = d
     end
 	return U, d
 end
@@ -248,7 +248,7 @@ mutable struct LowRankInvHypergraphLaplacianKernel <: GCNKernel
 	rank :: Int64
 end
 
-function setupMatrices(kernel :: LowRankInvHypergraphLaplacianKernel, dataset :: Dataset)
+function computeMatrices(kernel :: LowRankInvHypergraphLaplacianKernel, dataset :: Dataset)
 
 	hg = dataset.graph :: Hypergraph
 	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))
@@ -263,7 +263,7 @@ function setupMatrices(kernel :: LowRankInvHypergraphLaplacianKernel, dataset ::
 		(U,Σ), = Arpack.svds(H, nsv=numEV)
 	end
 	λ = 1 .- Σ[2:numEV].^2
-	return U[:,2:end], λ
+	return U[:,2:numEV], λ
 end
 
 
@@ -276,7 +276,7 @@ Laplacian.
 """
 struct InvHypergraphLaplacianKernel <: GCNKernel end
 
-function setupMatrices( :: InvHypergraphLaplacianKernel, dataset :: Dataset)
+function computeMatrices( :: InvHypergraphLaplacianKernel, dataset :: Dataset)
 
 	hg = dataset.graph :: Hypergraph
 	H = Diagonal(1 ./ sqrt.(hg.nodeDegrees)) * hg.incidence * Diagonal(sqrt.(hg.weights ./ hg.edgeDegrees))

@@ -3,7 +3,7 @@
 export
     GCNKernel,
     numParts,
-    setupMatrices,
+    computeMatrices,
     IdentityKernel,
     FixedMatrixKernel,
     FixedLowRankKernel,
@@ -28,7 +28,7 @@ number of weight matrices required per layer.
 """
 numParts(:: GCNKernel) = 1
 
-setupMatrices(:: GCNKernel) = nothing
+computeMatrices(:: GCNKernel) = nothing
 
 """
     IdentityKernel
@@ -42,14 +42,14 @@ mutable struct FixedMatrixKernel <: GCNKernel
     matrices :: Vector{Matrix{Float64}}
 end
 numParts(kernel :: FixedMatrixKernel) = length(kernel.matrices)
-setupMatrices(kernel :: FixedMatrixKernel) = kernel.matrices
+computeMatrices(kernel :: FixedMatrixKernel, ::Dataset) = kernel.matrices
 
 mutable struct FixedLowRankKernel <: GCNKernel
     projector :: Matrix{Float64}
     diagonals :: Vector{Vector{Float64}}
 end
 numParts(kernel :: FixedLowRankKernel) = length(kernel.diagonals)
-setupMatrices(kernel :: FixedLowRankKernel) = (kernel.projector, kernel.diagonals)
+computeMatrices(kernel :: FixedLowRankKernel, :: Dataset) = (kernel.projector, kernel.diagonals)
 
 
 """
@@ -73,7 +73,7 @@ PolyLaplacianKernel(coeffs :: Vector{Vector{Float64}};
 numParts(kernel :: PolyLaplacianKernel) =
     length(kernel.coeffs)
 
-function setupMatrices(kernel :: PolyLaplacianKernel, dataset :: Dataset)
+function computeMatrices(kernel :: PolyLaplacianKernel, dataset :: Dataset)
     L = getFullLaplacian(dataset.graph, kernel.smoother)
     X = UniformScaling(1.0)
     kernelParts = Any[c[1]*X for c in kernel.coeffs]
@@ -110,7 +110,7 @@ LowRankPolyLaplacianKernel(coeffs :: Vector{Vector{Float64}}, rank :: Int64;
 numParts(kernel :: LowRankPolyLaplacianKernel) =
     length(kernel.coeffs)
 
-function setupMatrices(kernel :: LowRankPolyLaplacianKernel, dataset :: Dataset)
+function computeMatrices(kernel :: LowRankPolyLaplacianKernel, dataset :: Dataset)
     λ, U = getLaplacianEigenvalues(dataset.graph,
                 kernel.rank, kernel.whichEV, kernel.smoother)
 	diagonals = Vector{Float64}[]
@@ -141,7 +141,7 @@ LowRankInvLaplacianKernel(rank :: Int64;
         isReduced :: Bool = false) =
     LowRankInvLaplacianKernel(rank, smoother, isReduced)
 
-function setupMatrices(kernel :: LowRankInvLaplacianKernel, dataset :: Dataset)
+function computeMatrices(kernel :: LowRankInvLaplacianKernel, dataset :: Dataset)
 	λ, U = getLaplacianEigenvalues(dataset.graph,
                 k.rank, :smallnonzero, k.smoother)
     return U, minimum(λ) ./ λ
