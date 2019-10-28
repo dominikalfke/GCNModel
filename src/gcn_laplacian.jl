@@ -41,7 +41,7 @@ function getFullLaplacian(graph :: AbstractGraph, smoother = nothing)
     degrees = sum(smoothedAdj, dims=1)[:]
     Dinvsqrt = Diagonal(1 ./ sqrt.(degrees))
 
-    return UniformScaling(1.0) - Symmetric(Dinvsqrt * smoothedAdj * Dinvsqrt)
+    return UniformScaling(1.0) - Dinvsqrt * smoothedAdj * Dinvsqrt
 end
 
 
