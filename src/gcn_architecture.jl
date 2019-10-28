@@ -143,7 +143,7 @@ LowRankInvLaplacianKernel(rank :: Int64;
 
 function computeMatrices(kernel :: LowRankInvLaplacianKernel, dataset :: Dataset)
 	λ, U = getLaplacianEigenvalues(dataset.graph,
-                k.rank, :smallnonzero, k.smoother)
+                kernel.rank, :smallnonzero, kernel.smoother)
     return U, minimum(λ) ./ λ
 end
 
