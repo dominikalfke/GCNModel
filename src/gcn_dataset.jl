@@ -51,8 +51,8 @@ mutable struct Dataset
     features :: AbstractMatrix{Float64}
     labels :: AbstractMatrix{Float64}
 
-    testSet :: Vector{Int64}
     trainingSet :: Vector{Int64}
+        testSet :: Vector{Int64}
     validationSet :: Vector{Int64}
 
     numFeatures :: Int64
@@ -60,8 +60,8 @@ mutable struct Dataset
     numNodes :: Int64
 
     function Dataset(name :: String, graph :: AbstractGraph,
-            features :: Matrix{Float64}, labels :: Matrix{Float64},
-            testSet :: Vector{Int64}, trainingSet :: Vector{Int64}, validationSet :: Vector{Int64})
+            features :: AbstractMatrix{Float64}, labels :: AbstractMatrix{Float64},
+            trainingSet :: Vector{Int64}, testSet :: Vector{Int64}, validationSet :: Vector{Int64})
 
         self = new(name, graph, features, labels,
                 testSet, trainingSet, validationSet)
