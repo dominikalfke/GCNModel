@@ -52,7 +52,7 @@ mutable struct Dataset
     labels :: AbstractMatrix{Float64}
 
     trainingSet :: Vector{Int64}
-        testSet :: Vector{Int64}
+    testSet :: Vector{Int64}
     validationSet :: Vector{Int64}
 
     numFeatures :: Int64
@@ -64,7 +64,7 @@ mutable struct Dataset
             trainingSet :: Vector{Int64}, testSet :: Vector{Int64}, validationSet :: Vector{Int64})
 
         self = new(name, graph, features, labels,
-                testSet, trainingSet, validationSet)
+                trainingSet, testSet, validationSet)
 
         self.numNodes = size(self.features, 1)
         @assert getNumNodes(graph) == self.numNodes
