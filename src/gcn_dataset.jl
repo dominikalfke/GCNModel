@@ -48,8 +48,8 @@ mutable struct Dataset
 
     graph :: AbstractGraph
 
-    features :: Matrix{Float64}
-    labels :: Matrix{Float64}
+    features :: AbstractMatrix{Float64}
+    labels :: AbstractMatrix{Float64}
 
     testSet :: Vector{Int64}
     trainingSet :: Vector{Int64}

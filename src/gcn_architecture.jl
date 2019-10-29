@@ -8,6 +8,7 @@ export
     FixedMatrixKernel,
     FixedLowRankKernel,
     PolyLaplacianKernel,
+	InverseLaplacianKernel,
     LowRankPolyLaplacianKernel,
     LowRankInvLaplacianKernel,
     GCNArchitecture,
@@ -89,6 +90,19 @@ function computeMatrices(kernel :: PolyLaplacianKernel, dataset :: Dataset)
 end
 
 """
+	InverseLapacianKernel
+"""
+mutable struct InverseLaplacianKernel <: GCNKernel
+	smoother
+end
+InverseLaplacianKernel(; smoother=nothing) = InverseLaplacianKernel(smoother)
+
+function computeMatrices(kernel :: InverseLaplacianKernel, dataset :: Dataset)
+	L = getFullLaplacian(dataset.graph, kernel.smoother)
+	return pinv(Matrix(L), atol=1e-4)
+end
+
+"""
     LowRankPolyLaplacianKernel
 
 `GCNKernel` subtype for basis functions that are low-rank approximations to
@@ -121,7 +135,7 @@ function computeMatrices(kernel :: LowRankPolyLaplacianKernel, dataset :: Datase
         end
         push!(diagonals, d)
     end
-	return U, d
+	return U, diagonals
 end
 
 """
