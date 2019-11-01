@@ -133,12 +133,20 @@ PolySmoothedHypergraphLaplacianKernel(singleCoeffs :: Vector{Float64}; α :: Flo
 
 numParts(k :: PolySmoothedHypergraphLaplacianKernel) = length(k.coeffs)
 
-# function computeMatrices(kernel :: PolySmoothedHypergraphLaplacianKernel, dataset :: Dataset)
-# 	h = dataset.graph :: Hypergraph
-# 	s = kernel.α .+ (kernel.β-1)*h.loopWeights
-# 	return (1.0 .- (s ./ (s ./ (h.nodeDegrees .+ s))),
-# 		Diagonal(1 ./ sqrt.(h.nodeDegrees .+ s)) * h.incidence * Diagonal(sqrt.(h.weights./h.edgeDegrees)))
-# end
+function computeMatrices(kernel :: PolySmoothedHypergraphLaplacianKernel, dataset :: Dataset)
+	if length(kernel.coeffs) != 1 || length(kernel.coeffs[1]) != 2
+		error("PolySmoothedHypergraphLaplacianKernel is currently only supported for a single polynomial of degree 1")
+	end
+	h = dataset.graph :: Hypergraph
+	a0, a1 = kernel.coeffs[1]
+
+	s = kernel.α .+ (kernel.β-1)*h.loopWeights
+	diagonal = (a0+a1) .- (s ./ (h.nodeDegrees .+ s))
+	lowRankProjectionMatrix = Diagonal(1 ./ sqrt.(h.nodeDegrees .+ s)) *
+					h.incidence * Diagonal(sqrt.(h.weights./h.edgeDegrees))
+	lowRankInnerMatrix = UniformScaling(-a1)
+	return [diagonal], lowRankProjectionMatrix, [lowRankInnerMatrix]
+end
 
 """
 	PolyHypergraphLaplacianKernel
@@ -229,11 +237,11 @@ function computeMatrices(kernel :: LowRankPolyHypergraphLaplacianKernel, dataset
     for i = 1:numParts(kernel)
         d = kernel.coeffs[i][1]
         for j = 2:length(kernel.coeffs[i])
-            d += kernel.coeffs[i][j] * λ.^(j-1)
+            d .+= kernel.coeffs[i][j] * λ.^(j-1)
         end
         diags[i] = d
     end
-	return U, d
+	return U, diags
 end
 
 
