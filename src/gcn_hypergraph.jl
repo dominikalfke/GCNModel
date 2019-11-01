@@ -214,28 +214,28 @@ function computeMatrices(kernel :: LowRankPolyHypergraphLaplacianKernel, dataset
 
 	if kernel.whichEV == :small
 		firstEV = 1
-		numEV = kernel.rank
+		lastEV = kernel.rank
 	elseif kernel.whichEV == :smallnonzero
 		firstEV = 2
-		numEV = kernel.rank+1
+		lastEV = kernel.rank+1
 	else
 		throw(ArgumentError("Unsupported eigenvalue specifier: $(tfk.kernel.whichEV)"))
 	end
 
-	if numEV > minimum(size(H))
+	if lastEV > minimum(size(H))
 		throw(ArgumentError(
 			"Requested number of eigenvalues $(lastEV) is larger than the incidence matrix allows"))
-	elseif 2*numEV > minimum(size(H))
+	elseif 2*lastEV > minimum(size(H))
 		U, Σ = svd(H)
 	else
-		(U,Σ), = Arpack.svds(H, nsv=numEV)
+		(U,Σ), = Arpack.svds(H, nsv=lastEV)
 	end
-	U = U[:, firstEV:numEV]
-	λ = 1 .- Σ[firstEV:numEV].^2
+	U = U[:, firstEV:lastEV]
+	λ = 1 .- Σ[firstEV:lastEV].^2
 
 	diags = Vector{Vector{Float64}}(undef, numParts(kernel))
     for i = 1:numParts(kernel)
-        d = kernel.coeffs[i][1]
+        d = fill(kernel.coeffs[i][1], kernel.rank)
         for j = 2:length(kernel.coeffs[i])
             d .+= kernel.coeffs[i][j] * λ.^(j-1)
         end
