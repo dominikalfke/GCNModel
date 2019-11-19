@@ -29,8 +29,11 @@ mutable struct Hypergraph <: AbstractGraph
 	nodeDegrees :: Vector{Float64}
 	loopWeights :: Vector{Float64}
 
-	function Hypergraph(inc :: Matrix{Float64}, weights :: Vector{Float64})
+	function Hypergraph(inc :: Matrix{Float64}, weights :: Vector{Float64} = Float64[])
 		n, m = size(inc)
+		if isempty(weights)
+			weights = ones(m)
+		end
 		length(weights) == m || throw(ArgumentError("Incorrect number of entries in Hypergraph \"weights\" argument"))
 		h = new(inc, weights, zeros(m), zeros(n), zeros(n))
 

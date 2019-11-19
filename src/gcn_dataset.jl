@@ -61,7 +61,7 @@ mutable struct Dataset
 
     function Dataset(name :: String, graph :: AbstractGraph,
             features :: AbstractMatrix{Float64}, labels :: AbstractMatrix{Float64},
-            trainingSet :: Vector{Int64}, testSet :: Vector{Int64}, validationSet :: Vector{Int64})
+            trainingSet :: Vector{Int64} = Int64[], testSet :: Vector{Int64} = Int64[], validationSet :: Vector{Int64} = Int64[])
 
         self = new(name, graph, features, labels,
                 trainingSet, testSet, validationSet)
